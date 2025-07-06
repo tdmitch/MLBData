@@ -34,40 +34,52 @@ def insert_rows(table_name, rows):
     # Get distinct column list from all rows
     columns = list({key for row in rows for key in row.keys()})
     
-
     # Join together for string output
     col_str = ', '.join(f'[{ sanitize_value(col) }]' for col in columns)
-    values_list = []
-
-    for row in rows:
-        vals = []
-        for col in columns:
-            val = row.get(col, 'NULL')
-            if isinstance(val, str):
-                val = val.replace("'", "''")
-                vals.append(f"'{val}'")
-            elif val is None:
-                vals.append("NULL")
-            else:
-                vals.append(str(val))
-        values_list.append(f"({', '.join(vals)})")
-
-    sql = f"INSERT INTO {table_name} ({col_str}) VALUES {', '.join(values_list)}"
-
-    # cleanup
-    sql = sql.replace('None', 'NULL').replace("'NULL'", 'NULL').replace('False', '0').replace('True', '1')
 
     conn = connect_to_db()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        conn.commit()
-    except Exception as e:
-        print(f"Error inserting rows into {table_name}: {e}")
-        print(f"SQL: {sql}")
-        raise        
-    finally:
-        conn.close()
+
+    batch_size = int(os.getenv('INSERT_BATCH_SIZE', 1000))  # Default to 1000 if not set
+    row_count = len(rows)
+    current_row = 0
+
+    while current_row < row_count:       
+
+        values_list = []
+
+        for row in rows[current_row:]:
+            vals = []
+            for col in columns:
+                val = row.get(col, 'NULL')
+                if isinstance(val, str):
+                    val = val.replace("'", "''")
+                    vals.append(f"'{val}'")
+                elif val is None:
+                    vals.append("NULL")
+                else:
+                    vals.append(str(val))
+            values_list.append(f"({', '.join(vals)})")
+            current_row += 1
+            if current_row % batch_size == 0:
+                break
+
+        sql = f"INSERT INTO {table_name} ({col_str}) VALUES {', '.join(values_list)}"
+
+        # cleanup
+        sql = sql.replace('None', 'NULL').replace("'NULL'", 'NULL').replace('False', '0').replace('True', '1')
+
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            conn.commit()
+        except Exception as e:
+            print(f"Error inserting rows into {table_name}: {e}")
+            print(f"SQL: {sql}")
+            conn.close()
+            raise        
+            
+        
 
 
 
