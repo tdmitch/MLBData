@@ -103,10 +103,10 @@ def downloadGameDetail(game_id, output_dir):
     
     if not output_dir.endswith("\\"):
         output_dir += "\\"
-    outputDir += f"{ game_id_string }.json"
+    output_dir += f"{ game_id_string }.json"
 
     # Save the game feed to a file
-    with open(outputDir, 'w', encoding='utf-8') as f:
+    with open(output_dir, 'w', encoding='utf-8') as f:
         f.write(str(json.dumps(game_data)))  
 
 
