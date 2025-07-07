@@ -78,8 +78,9 @@ def getGameList(season):
                     gameDetails['reason'] = game['status'].get('status', 'NULL')
                     gameDetails['detailedState'] = game['status'].get('detailedState', 'NULL')
 
+                # Add this game to the list
                 games.append(gameDetails)
-   
+
         # Increment the game date by one day
         game_date = datetime.strptime(game_date, "%m/%d/%Y") + timedelta(days=1)
 
@@ -124,39 +125,33 @@ def getAtBats(file_path):
     
     # Get the AtBats from this file
     for atBat in game_data['liveData']['plays']['allPlays']:
-        atBatValues = {}
-        atBatValues['gameId']                  = gameId
-        atBatValues['pitcherId']               = atBat['matchup']['pitcher']['id'] 
-        atBatValues['pitchHand']               = atBat['matchup']['pitchHand']['code']
-        atBatValues['batterId']                = atBat['matchup']['batter']['id']
-        atBatValues['batSide']                 = atBat['matchup']['batSide']['code']
-        atBatValues['atBatIndex']              = atBat['atBatIndex']
+        if atBat.get('result', None) is not None and atBat['result'].get('type', None) == 'atBat':
+            atBatValues = {}
+            atBatValues['gameId']                  = gameId
+            atBatValues['pitcherId']               = atBat['matchup']['pitcher']['id'] 
+            atBatValues['pitchHand']               = atBat['matchup']['pitchHand']['code']
+            atBatValues['batterId']                = atBat['matchup']['batter']['id']
+            atBatValues['batSide']                 = atBat['matchup']['batSide']['code']
+            atBatValues['atBatIndex']              = atBat['atBatIndex']
 
-        atBatValues['halfInning']              = atBat['about'].get('halfInning', 'NULL')
-        atBatValues['inning']                  = atBat['about'].get('inning', 'NULL')
-        atBatValues['startTime']               = atBat['about'].get('startTime', 'NULL')
-        atBatValues['endTime']                 = atBat['about'].get('endTime', 'NULL')
-        atBatValues['isScoringPlay']           = atBat['about'].get('isScoringPlay', 'NULL')
-        atBatValues['hasOut']                  = atBat['about'].get('hasOut', 'NULL')
-        atBatValues['hasReview']               = atBat['about'].get('hasReview', 'NULL')
+            atBatValues['halfInning']              = atBat['about'].get('halfInning', 'NULL')
+            atBatValues['inning']                  = atBat['about'].get('inning', 'NULL')
+            atBatValues['startTime']               = atBat['about'].get('startTime', 'NULL')
+            atBatValues['endTime']                 = atBat['about'].get('endTime', 'NULL')
+            atBatValues['isScoringPlay']           = atBat['about'].get('isScoringPlay', 'NULL')
+            atBatValues['hasOut']                  = atBat['about'].get('hasOut', 'NULL')
+            atBatValues['hasReview']               = atBat['about'].get('hasReview', 'NULL')
 
-        atBatValues['resultType']              = atBat['result'].get('type', 'NULL')
-        atBatValues['event']                   = atBat['result'].get('event', 'NULL')
-        atBatValues['eventType']               = atBat['result'].get('eventType', 'NULL')
-        atBatValues['rbi']                     = atBat['result'].get('rbi', 'NULL')
-        atBatValues['awayScore']               = atBat['result'].get('awayScore', 'NULL')
-        atBatValues['homeScore']               = atBat['result'].get('homeScore', 'NULL')
-        atBatValues['isComplete']              = atBat['result'].get('isComplete', 'NULL')
+            atBatValues['resultType']              = atBat['result'].get('type', 'NULL')
+            atBatValues['event']                   = atBat['result'].get('event', 'NULL')
+            atBatValues['eventType']               = atBat['result'].get('eventType', 'NULL')
+            atBatValues['rbi']                     = atBat['result'].get('rbi', 'NULL')
+            atBatValues['awayScore']               = atBat['result'].get('awayScore', 'NULL')
+            atBatValues['homeScore']               = atBat['result'].get('homeScore', 'NULL')
+            atBatValues['isComplete']              = atBat['result'].get('isComplete', 'NULL')
 
-        atBatValues['pitches'] = []  # Initialize pitches as an empty list
-        # Add pitches (as playEvents) to the atBatValues dictionary    
-
-        for event in atBat['playEvents']:
-            if event['isPitch'] == True:
-                atBatValues['pitches'].append(event)
-
-        # Add this plate appearance to the list
-        atBats.append(atBatValues)
+            # Add this At Bat to the list
+            atBats.append(atBatValues)
 
 
     return atBats
@@ -173,85 +168,94 @@ def getPitches(file_path):
     """
 
     pitches = []
+    game_data = None
 
-    at_bats = getAtBats(file_path)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        game_data = json.load(f) 
     
-    for at_bat in at_bats:
-        for pitch in at_bat['pitches']:
-            # Store pitch values in a dictionary
+    gameId = game_data['gamePk']
+    
+    # Get the AtBats from this file
+    for atBat in game_data['liveData']['plays']['allPlays']:
+        if atBat.get('result', None) is not None and atBat['result'].get('type', None) == 'atBat':
+            for pitch in atBat['playEvents']:
+                if pitch['isPitch']:
+                # Store pitch values in a dictionary
 
-            pitchValues = {}     
-            pitchValues['gameId']              = at_bats[0]['gameId']
-            pitchValues['atBatIndex']          = at_bat['atBatIndex']
-            pitchValues['pitcherId']           = at_bat['pitcherId']
-            pitchValues['batterId']            = at_bat['batterId']
-            pitchValues['playId']              = pitch['playId']
-            pitchValues['pitchNumber']         = pitch['pitchNumber']
-            pitchValues['isInPlay']            = pitch['details']['isInPlay']
-            pitchValues['isStrike']            = pitch['details']['isStrike']
-            pitchValues['isBall']              = pitch['details']['isBall']
-            pitchValues['callCode']            = pitch['details']['call']['code']
-            pitchValues['typeCode']            = pitch['details'].get('type', {}).get('code', None)
-            pitchValues['countBalls']          = pitch['count']['balls']
-            pitchValues['countStrikes']        = pitch['count']['strikes']
-            
-            # pitchData
-            pitchData = pitch.get('pitchData', None)
-            if pitchData is not None:                       
-                pitchValues['startSpeed']          = pitchData.get('startSpeed', 'NULL')
-                pitchValues['endSpeed']            = pitchData.get('endSpeed', 'NULL')
-                pitchValues['strikeZoneTop']       = pitchData.get('strikeZoneTop', 'NULL')
-                pitchValues['strikeZoneBottom']    = pitchData.get('strikeZoneBottom', 'NULL')
-                pitchValues['zone']                = pitchData.get('zone', 'NULL')
-                pitchValues['plateTime']           = pitchData.get('plateTime', 'NULL')
-                
-                
-                # coordinates
-                coordinates         = pitchData.get('coordinates', None)
-                if coordinates is not None:                            
-                    pitchValues['aY']                  = coordinates.get('aY', 'NULL')
-                    pitchValues['aZ']                  = coordinates.get('aZ', 'NULL')
-                    pitchValues['pfxX']                = coordinates.get('pfxX', 'NULL')
-                    pitchValues['pfxZ']                = coordinates.get('pfxZ', 'NULL')
-                    pitchValues['pX']                  = coordinates.get('pX', 'NULL')
-                    pitchValues['pZ']                  = coordinates.get('pZ', 'NULL')
-                    pitchValues['vX0']                 = coordinates.get('vX0', 'NULL')
-                    pitchValues['vY0']                 = coordinates.get('vY0', 'NULL')
-                    pitchValues['vZ0']                 = coordinates.get('vZ0', 'NULL')
-                    pitchValues['x']                   = coordinates.get('x', 'NULL') 
-                    pitchValues['y']                   = coordinates.get('y', 'NULL') 
-                    pitchValues['x0']                  = coordinates.get('x0', 'NULL')
-                    pitchValues['y0']                  = coordinates.get('y0', 'NULL')
-                    pitchValues['z0']                  = coordinates.get('z0', 'NULL')
-                    pitchValues['aX']                  = coordinates.get('aX', 'NULL')
-                
-
-                # breaks                                               
-                breaks = pitchData.get('breaks', None)
-                if breaks is not None:
-                    pitchValues['breakAngle']          = breaks.get('breakAngle', 'NULL')
-                    pitchValues['breakLength']         = breaks.get('breakLength', 'NULL')
-                    pitchValues['breakY']              = breaks.get('breakY', 'NULL')
-                    pitchValues['spinRate']            = breaks.get('spinRate', 'NULL')
-                    pitchValues['spinDirection']       = breaks.get('spinDirection', 'NULL')
+                    pitchValues = {}     
+                    pitchValues['gameId']              = gameId
+                    pitchValues['atBatIndex']          = atBat['atBatIndex']
+                    pitchValues['pitcherId']           = atBat['matchup']['pitcher']['id']
+                    pitchValues['batterId']            = atBat['matchup']['batter']['id']
+                    pitchValues['playId']              = pitch['playId']
+                    pitchValues['pitchNumber']         = pitch['pitchNumber']
+                    pitchValues['isInPlay']            = pitch['details']['isInPlay']
+                    pitchValues['isStrike']            = pitch['details']['isStrike']
+                    pitchValues['isBall']              = pitch['details']['isBall']
+                    pitchValues['callCode']            = pitch['details']['call']['code']
+                    pitchValues['typeCode']            = pitch['details'].get('type', {}).get('code', None)
+                    pitchValues['countBalls']          = pitch['count']['balls']
+                    pitchValues['countStrikes']        = pitch['count']['strikes']
                     
-                
-                hitData = pitchData.get('hitData', None)
-                if hitData is not None:
-                    # hit data
-                    pitchValues['launchSpeed']         = hitData.get('launchSpeed', 'NULL')
-                    pitchValues['launchAngle']         = hitData.get('launchAngle', 'NULL')
-                    pitchValues['totalDistance']       = hitData.get('totalDistance', 'NULL')
-                    pitchValues['trajectory']          = hitData.get('trajectory', 'NULL')
-                    pitchValues['hardness']            = hitData.get('hardness', 'NULL')
-                    pitchValues['location']            = hitData.get('location', 'NULL')
-                    
-                    # hit coordinates 
-                    hitDataCoordinates = hitData.get('coordinates', None)
-                    if hitDataCoordinates is not None:
-                        pitchValues['coordX']              = hitDataCoordinates.get('coordX', 'NULL')
-                        pitchValues['coordY']              = hitDataCoordinates.get('coordY', 'NULL')
+                    # pitchData
+                    pitchData = pitch.get('pitchData', None)
+                    if pitchData is not None:                       
+                        pitchValues['startSpeed']          = pitchData.get('startSpeed', 'NULL')
+                        pitchValues['endSpeed']            = pitchData.get('endSpeed', 'NULL')
+                        pitchValues['strikeZoneTop']       = pitchData.get('strikeZoneTop', 'NULL')
+                        pitchValues['strikeZoneBottom']    = pitchData.get('strikeZoneBottom', 'NULL')
+                        pitchValues['zone']                = pitchData.get('zone', 'NULL')
+                        pitchValues['plateTime']           = pitchData.get('plateTime', 'NULL')
+                        
+                        
+                        # coordinates
+                        coordinates         = pitchData.get('coordinates', None)
+                        if coordinates is not None:                            
+                            pitchValues['aY']                  = coordinates.get('aY', 'NULL')
+                            pitchValues['aZ']                  = coordinates.get('aZ', 'NULL')
+                            pitchValues['pfxX']                = coordinates.get('pfxX', 'NULL')
+                            pitchValues['pfxZ']                = coordinates.get('pfxZ', 'NULL')
+                            pitchValues['pX']                  = coordinates.get('pX', 'NULL')
+                            pitchValues['pZ']                  = coordinates.get('pZ', 'NULL')
+                            pitchValues['vX0']                 = coordinates.get('vX0', 'NULL')
+                            pitchValues['vY0']                 = coordinates.get('vY0', 'NULL')
+                            pitchValues['vZ0']                 = coordinates.get('vZ0', 'NULL')
+                            pitchValues['x']                   = coordinates.get('x', 'NULL') 
+                            pitchValues['y']                   = coordinates.get('y', 'NULL') 
+                            pitchValues['x0']                  = coordinates.get('x0', 'NULL')
+                            pitchValues['y0']                  = coordinates.get('y0', 'NULL')
+                            pitchValues['z0']                  = coordinates.get('z0', 'NULL')
+                            pitchValues['aX']                  = coordinates.get('aX', 'NULL')
+                        
 
-            ############################################################################################################################################
+                        # breaks                                               
+                        breaks = pitchData.get('breaks', None)
+                        if breaks is not None:
+                            pitchValues['breakAngle']          = breaks.get('breakAngle', 'NULL')
+                            pitchValues['breakLength']         = breaks.get('breakLength', 'NULL')
+                            pitchValues['breakY']              = breaks.get('breakY', 'NULL')
+                            pitchValues['spinRate']            = breaks.get('spinRate', 'NULL')
+                            pitchValues['spinDirection']       = breaks.get('spinDirection', 'NULL')
+                            
+                        
+                        hitData = pitchData.get('hitData', None)
+                        if hitData is not None:
+                            # hit data
+                            pitchValues['launchSpeed']         = hitData.get('launchSpeed', 'NULL')
+                            pitchValues['launchAngle']         = hitData.get('launchAngle', 'NULL')
+                            pitchValues['totalDistance']       = hitData.get('totalDistance', 'NULL')
+                            pitchValues['trajectory']          = hitData.get('trajectory', 'NULL')
+                            pitchValues['hardness']            = hitData.get('hardness', 'NULL')
+                            pitchValues['location']            = hitData.get('location', 'NULL')
+                            
+                            # hit coordinates 
+                            hitDataCoordinates = hitData.get('coordinates', None)
+                            if hitDataCoordinates is not None:
+                                pitchValues['coordX']              = hitDataCoordinates.get('coordX', 'NULL')
+                                pitchValues['coordY']              = hitDataCoordinates.get('coordY', 'NULL')
 
-        pitches.append(pitchValues)
+                    ############################################################################################################################################
+
+                    pitches.append(pitchValues)
+
+    return pitches

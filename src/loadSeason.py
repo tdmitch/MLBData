@@ -2,10 +2,11 @@ import dbfx
 import mlbfx
 import logging
 import os
+import utilfx
 from datetime import datetime
 
 
-season = 1997
+season = 1996
 
 
 
@@ -51,16 +52,16 @@ logging.info("Completed the load of games for season %d", season)
 
 logging.info("Downloading game details for season %d games", season)
 
-
-
 for game in games:
-    game_id = game['gameId']
+    # skip downloading detail for suspended, postponed, and cancelled games
+    if game['detailedState'] != 'Suspended' and game['detailedState'] != 'Postponed' and game['detailedState'] != 'Cancelled':
+        game_id = game['gameId']
     
-    # Define the output directory
-    output_dir = os.getenv('GAMES_DOWNLOAD_DIR')
-    
-    # Download the game details
-    mlbfx.downloadGameDetail(game_id, output_dir)
+        # Define the output directory
+        output_dir = os.getenv('GAMES_DOWNLOAD_DIR')
+        
+        # Download the game details
+        mlbfx.downloadGameDetail(game_id, output_dir)
 
 logging.info("Completed the download of game files for season %d games", season)
 
@@ -69,12 +70,8 @@ logging.info("Completed the download of game files for season %d games", season)
 
 
 """
-    Parse the game details and load them into the database
+    Parse the game atBats and Pitches and load them into the database
 """
-
-# Truncate the raw.PlateAppearance and raw.Pitch tables to prepare for new data
-dbfx.execute_non_query("TRUNCATE TABLE raw.PlateAppearance")
-dbfx.execute_non_query("TRUNCATE TABLE raw.Pitch")
 
 logging.info("Processing game details for season %d games from downloaded game files", season)
 
@@ -82,21 +79,25 @@ download_dir = os.getenv('GAMES_DOWNLOAD_DIR', '.')
 for filename in os.listdir(download_dir):
     if filename.endswith('.json'):
         file_path = os.path.join(download_dir, filename)
-        
+
+        # Truncate the raw.AtBat and raw.Pitch tables to prepare for new data
+        dbfx.execute_non_query("TRUNCATE TABLE raw.AtBat")
+        dbfx.execute_non_query("TRUNCATE TABLE raw.Pitch")
+                
         # Process each game detail file
         game_detail = mlbfx.getAtBats(file_path)
 
         if game_detail:
             # Insert the game detail into the staging table
-            dbfx.insert_rows('raw.GameDetail', game_detail)
+            dbfx.insert_rows('raw.AtBat', game_detail)
 
             # Load the game detail into the main table
-            dbfx.execute_non_query("EXEC dbo.usp_Load_PlateAppearance")
+            dbfx.execute_non_query("EXEC dbo.usp_Load_AtBat")
             
         else:
             logging.warning("No game detail found for file: %s", filename)
 
-
+        # Using the same file path, get the pitches for this game
         pitches = mlbfx.getPitches(file_path)
 
         if pitches:
@@ -111,10 +112,13 @@ for filename in os.listdir(download_dir):
 
 
 
-        
+# Move downloaded files to the archive directory
+utilfx.move_files(source_dir=os.getenv('GAMES_DOWNLOAD_DIR'), 
+                destination_dir=os.getenv('GAMES_ARCHIVE_DIR'), 
+                extension=".json")
+print(f"Moved downloaded files to the archive directory")
+logging.info("Moved downloaded files to the archive directory")
 
 
-
-        
 
 logging.info("Completed processing of game details for season %d games", season)

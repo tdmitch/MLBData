@@ -30,7 +30,7 @@ def sanitize_value(value):
 def insert_rows(table_name, rows):
     if not rows:
         return
-
+    
     # Get distinct column list from all rows
     columns = list({key for row in rows for key in row.keys()})
     
@@ -63,12 +63,11 @@ def insert_rows(table_name, rows):
             if current_row % batch_size == 0:
                 break
 
-        sql = f"INSERT INTO {table_name} ({col_str}) VALUES {', '.join(values_list)}"
+        sql = f"INSERT INTO {table_name} ({col_str}) VALUES {'\n, '.join(values_list)}"
 
         # cleanup
         sql = sql.replace('None', 'NULL').replace("'NULL'", 'NULL').replace('False', '0').replace('True', '1')
 
-        
         try:
             cursor = conn.cursor()
             cursor.execute(sql)
@@ -77,7 +76,10 @@ def insert_rows(table_name, rows):
             print(f"Error inserting rows into {table_name}: {e}")
             print(f"SQL: {sql}")
             conn.close()
-            raise        
+            raise   
+    if not conn.closed:
+        conn.commit()
+        conn.close()
             
         
 
