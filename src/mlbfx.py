@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import json
 
 
-
 def getGameList(season):
     """
         This function retrieves a list of games for a given MLB season. It loops through
@@ -259,3 +258,34 @@ def getPitches(file_path):
                     pitches.append(pitchValues)
 
     return pitches
+
+
+
+
+
+def getGameTypes():
+    # Get game types from MLB API
+    url = "https://statsapi.mlb.com/api/v1/gameTypes"
+    response = requests.get(url)
+    data = response.json()
+
+    return data
+
+
+def getPitchTypes():
+    # Get pitch types from MLB API
+    url = "https://statsapi.mlb.com/api/v1/pitchTypes"
+    response = requests.get(url)
+    data = response.json()
+
+    return data
+
+
+
+def getPositions():
+    # Get positions from MLB API
+    url = "https://statsapi.mlb.com/api/v1/positions"
+    response = requests.get(url)
+    data = response.json()
+
+    return data

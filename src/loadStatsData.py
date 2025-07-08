@@ -6,7 +6,7 @@ import utilfx
 from datetime import datetime
 
 
-season = 1994
+season = 1988
 
 
 
