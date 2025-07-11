@@ -78,7 +78,7 @@ def getGameList(season):
                 gameDetails['gameDateTime'] = game['gameDate']                
                 gameDetails['homeTeam'] = game['teams']['home']['team']['id']
                 gameDetails['awayTeam'] = game['teams']['away']['team']['id']
-                gameDetails['venue'] = (game['venue']['id'])                
+                gameDetails['venue'] = game['venue'].get('id', 'NULL')
                 if game.get('status', None) is not None:
                     gameDetails['reason'] = game['status'].get('status', 'NULL')
                     gameDetails['detailedState'] = game['status'].get('detailedState', 'NULL')
