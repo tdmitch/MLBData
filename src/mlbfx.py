@@ -2,6 +2,8 @@ import requests
 from datetime import datetime, timedelta
 import json
 
+import utilfx
+
 
 def getGameList(season):
     """
@@ -54,8 +56,12 @@ def getGameList(season):
         
         # API call for current date
         scheduleRequestString = f"http://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&date={game_date}"
-        schedule = requests.get(scheduleRequestString).json()
-        
+        schedule = utilfx.try_get_json(scheduleRequestString, retries=5, pause_minutes=3)
+
+        if schedule is None:
+            print(f"getGameList(): Failed to retrieve schedule for date: {game_date}. Exiting.")
+            return None
+
         # Loop through games on this date if any and add to the games list
         if schedule['totalGames'] > 0:
             for game in schedule['dates'][0]['games']:
@@ -97,7 +103,11 @@ def downloadGameDetail(game_id, output_dir):
     """
     # Build the URL for this game and get game data
     game_url = f'https://statsapi.mlb.com/api/v1.1/game/{game_id}/feed/live/'
-    game_data = requests.get(game_url).json()
+    game_data = utilfx.try_get_json(game_url, retries=5, pause_minutes=3)
+
+    if game_data is None:
+        print(f"downloadGameDetail(): Failed to retrieve game data for game ID: {game_id}. Exiting.")
+        return False
 
     game_id_string = game_data["gameData"]["game"]["id"].replace("/", "_").replace("-", "_")
     
@@ -109,7 +119,7 @@ def downloadGameDetail(game_id, output_dir):
     with open(output_dir, 'w', encoding='utf-8') as f:
         f.write(str(json.dumps(game_data)))  
 
-
+    return True
 
 
 def getAtBats(file_path):
@@ -186,7 +196,7 @@ def getPitches(file_path):
                     pitchValues['atBatIndex']          = atBat['atBatIndex']
                     pitchValues['pitcherId']           = atBat['matchup']['pitcher']['id']
                     pitchValues['batterId']            = atBat['matchup']['batter']['id']
-                    pitchValues['playId']              = pitch['playId']
+                    # pitchValues['playId']              = pitch['playId']
                     pitchValues['pitchNumber']         = pitch['pitchNumber']
                     pitchValues['isInPlay']            = pitch['details']['isInPlay']
                     pitchValues['isStrike']            = pitch['details']['isStrike']
@@ -210,21 +220,21 @@ def getPitches(file_path):
                         # coordinates
                         coordinates         = pitchData.get('coordinates', None)
                         if coordinates is not None:                            
-                            pitchValues['aY']                  = coordinates.get('aY', 'NULL')
-                            pitchValues['aZ']                  = coordinates.get('aZ', 'NULL')
-                            pitchValues['pfxX']                = coordinates.get('pfxX', 'NULL')
-                            pitchValues['pfxZ']                = coordinates.get('pfxZ', 'NULL')
-                            pitchValues['pX']                  = coordinates.get('pX', 'NULL')
-                            pitchValues['pZ']                  = coordinates.get('pZ', 'NULL')
-                            pitchValues['vX0']                 = coordinates.get('vX0', 'NULL')
-                            pitchValues['vY0']                 = coordinates.get('vY0', 'NULL')
-                            pitchValues['vZ0']                 = coordinates.get('vZ0', 'NULL')
                             pitchValues['x']                   = coordinates.get('x', 'NULL') 
                             pitchValues['y']                   = coordinates.get('y', 'NULL') 
-                            pitchValues['x0']                  = coordinates.get('x0', 'NULL')
-                            pitchValues['y0']                  = coordinates.get('y0', 'NULL')
-                            pitchValues['z0']                  = coordinates.get('z0', 'NULL')
-                            pitchValues['aX']                  = coordinates.get('aX', 'NULL')
+                            #pitchValues['aY']                  = coordinates.get('aY', 'NULL')
+                            #pitchValues['aZ']                  = coordinates.get('aZ', 'NULL')
+                            #pitchValues['pfxX']                = coordinates.get('pfxX', 'NULL')
+                            #pitchValues['pfxZ']                = coordinates.get('pfxZ', 'NULL')
+                            #pitchValues['pX']                  = coordinates.get('pX', 'NULL')
+                            #pitchValues['pZ']                  = coordinates.get('pZ', 'NULL')
+                            #pitchValues['vX0']                 = coordinates.get('vX0', 'NULL')
+                            #pitchValues['vY0']                 = coordinates.get('vY0', 'NULL')
+                            #pitchValues['vZ0']                 = coordinates.get('vZ0', 'NULL')
+                            #pitchValues['x0']                  = coordinates.get('x0', 'NULL')
+                            #pitchValues['y0']                  = coordinates.get('y0', 'NULL')
+                            #pitchValues['z0']                  = coordinates.get('z0', 'NULL')
+                            #pitchValues['aX']                  = coordinates.get('aX', 'NULL')
                         
 
                         # breaks                                               
@@ -250,8 +260,8 @@ def getPitches(file_path):
                             # hit coordinates 
                             hitDataCoordinates = hitData.get('coordinates', None)
                             if hitDataCoordinates is not None:
-                                pitchValues['coordX']              = hitDataCoordinates.get('coordX', 'NULL')
-                                pitchValues['coordY']              = hitDataCoordinates.get('coordY', 'NULL')
+                                pitchValues['hit_x']              = hitDataCoordinates.get('coordX', 'NULL')
+                                pitchValues['hit_y']              = hitDataCoordinates.get('coordY', 'NULL')
 
                     ############################################################################################################################################
 
