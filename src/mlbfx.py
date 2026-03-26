@@ -5,7 +5,7 @@ import json
 import utilfx
 
 
-def getGameList(season):
+def getGameList(season, start_date=None, end_date=None):
     """
         This function retrieves a list of games for a given MLB season. It loops through
         all potential dates for the season, checking each date for scheduled games.
@@ -36,11 +36,20 @@ def getGameList(season):
     """
 
     # Game list is stored by date, so we need the min and max dates for the season.
-    # These variables are set to stretch beyond any potential game dates for the 
-    # selected season.
-    season_min_date = f"{season}-02-01"
-    season_max_date = f"{season}-11-30"    
-    
+    # If dates are specified, we'll use those. Otherwise, we'll default to a wide 
+    # enough range that will cover the entire season, from spring training through 
+    # the World Series.
+    if start_date is None:
+        season_min_date = f"{season}-01-15"
+    else:
+        season_min_date = start_date
+
+    if end_date is None:
+        season_max_date = f"{season}-11-30"
+    else:
+        season_max_date = end_date
+
+
     # convert the start date and end date to date time value
     first_game_date = datetime.strptime(season_min_date,'%Y-%m-%d')
     last_game_date = datetime.strptime(season_max_date,'%Y-%m-%d')

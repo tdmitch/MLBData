@@ -8,11 +8,11 @@ import time
 
 
 
-season = 1958
-season_stop = 1935
+season = 2026
+season_stop = 2026
 
 
-while season >= season_stop:
+while season <= season_stop:
 
     GAMES_DOWNLOAD_DIR = os.getenv('GAMES_DOWNLOAD_DIR')
 
@@ -168,12 +168,13 @@ while season >= season_stop:
     logging.info(f"**** Completed processing of game details for the { season } season ****")
     print(f"\n**** Completed processing of game details for the { season } season ****\n")
 
-    season -= 1
+    season += 1
 
     # Sleep to avoid overwhelming the API with requests
     sleep_duration_minutes = 1
     
-    logging.info(f"Sleeping for { sleep_duration_minutes } minutes to avoid getting locked out of the API")
-    print(f"Sleeping for { sleep_duration_minutes  } minutes to avoid getting locked out of the API\n\n")
+    log_string = f"Sleeping for { sleep_duration_minutes } minute{'s' if sleep_duration_minutes != 1 else ''} to avoid getting locked out of the API"
+    logging.info(log_string)
+    print(f"{log_string}\n\n")
 
     time.sleep((sleep_duration_minutes * 60))
