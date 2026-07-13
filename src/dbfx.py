@@ -121,3 +121,15 @@ def execute_non_query(sql):
     cursor.execute(sql)
     conn.commit()
     
+
+def get_last_load_date():
+    conn = connect_to_db()
+
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT MAX(CAST(LastLoadDate AS DATE)) AS LastLoadDate FROM etl.LoadDate")
+    result = cursor.fetchone()
+    
+    if result and result[0]:
+        return result[0]
+    else:
+        return None

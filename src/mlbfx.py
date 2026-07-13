@@ -1,17 +1,87 @@
 import requests
 from datetime import datetime, timedelta
 import json
+import os
 
 import utilfx
 
 
-def getGameList(season, start_date=None, end_date=None):
+def getGameListByDate(game_date):
+    """
+        This function retrieves a list of games for a single MLB date.
+
+        :param game_date: Date to process. Accepts a datetime value or a string
+                          in YYYY-MM-DD or MM/DD/YYYY format.
+        :return: A list of dictionaries, each containing details about a game,
+                 or None if the schedule request fails.
+    """
+
+    if isinstance(game_date, datetime):
+        schedule_date = game_date.strftime("%m/%d/%Y")
+    else:
+        try:
+            schedule_date = datetime.strptime(game_date, '%Y-%m-%d').strftime("%m/%d/%Y")
+        except ValueError:
+            schedule_date = datetime.strptime(game_date, '%m/%d/%Y').strftime("%m/%d/%Y")
+
+    # API call for provided date
+    scheduleRequestString = f"http://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&date={schedule_date}"
+    schedule = utilfx.try_get_json(scheduleRequestString, retries=5, pause_minutes=3)
+
+    if schedule is None:
+        print(f"getGameListByDate(): Failed to retrieve schedule for date: {schedule_date}. Exiting.")
+        return None
+
+    games = []
+
+    # Loop through games on this date if any and add to the games list
+    if schedule['totalGames'] > 0:
+        for game in schedule['dates'][0]['games']:
+            gameDetails = {}
+            gameDetails['season'] = game['season']
+            gameDetails['gameId'] = game['gamePk']
+            gameDetails['gameType'] = game['gameType']
+            gameDetails['doubleHeader'] = game['doubleHeader']
+            gameDetails['gamedayType'] = game['gamedayType']
+            gameDetails['tiebreaker'] = game['tiebreaker']
+            gameDetails['dayNight'] = game['dayNight']
+            gameDetails['gamesInSeries'] = game.get('gamesInSeries', 'NULL')
+            gameDetails['seriesGameNumber'] = game.get('seriesGameNumber', 'NULL')
+            gameDetails['gameDateTime'] = game['gameDate']
+            gameDetails['homeTeam'] = game['teams']['home']['team']['id']
+            gameDetails['awayTeam'] = game['teams']['away']['team']['id']
+            gameDetails['venue'] = game['venue'].get('id', 'NULL')
+            if game.get('status', None) is not None:
+                gameDetails['reason'] = game['status'].get('status', 'NULL')
+                gameDetails['detailedState'] = game['status'].get('detailedState', 'NULL')
+
+            # Add this game to the list
+            games.append(gameDetails)
+
+    return games
+
+
+def getGameListBySeason(season):
+    
+    # Game list is stored by date, so we need the min and max dates for the season.
+    # If dates are specified, we'll use those. Otherwise, we'll default to a wide 
+    # enough range that will cover the entire season, from spring training through 
+    # the World Series.
+    season_min_date = f"{season}-01-15"
+    season_max_date = f"{season}-11-30"
+    
+    return getGameListByDateRange(season_min_date, season_max_date)
+
+
+
+def getGameListByDateRange(start_date=None, end_date=None):
     """
         This function retrieves a list of games for a given MLB season. It loops through
         all potential dates for the season, checking each date for scheduled games.
         If games are found, it extracts relevant details and returns a list of game dictionaries.
 
-        :param season: The MLB season year (e.g., 2025)
+        :param start_date: The start date for the range of games to retrieve (YYYY-MM-DD).
+        :param end_date: The end date for the range of games to retrieve (YYYY-MM-DD).
         :return: A list of dictionaries, each containing details about a game.
         
         Example dictionary structure:
@@ -35,81 +105,42 @@ def getGameList(season, start_date=None, end_date=None):
 
     """
 
-    # Game list is stored by date, so we need the min and max dates for the season.
-    # If dates are specified, we'll use those. Otherwise, we'll default to a wide 
-    # enough range that will cover the entire season, from spring training through 
-    # the World Series.
-    if start_date is None:
-        season_min_date = f"{season}-01-15"
-    else:
-        season_min_date = start_date
-
-    if end_date is None:
-        season_max_date = f"{season}-11-30"
-    else:
-        season_max_date = end_date
 
 
     # convert the start date and end date to date time value
-    first_game_date = datetime.strptime(season_min_date,'%Y-%m-%d')
-    last_game_date = datetime.strptime(season_max_date,'%Y-%m-%d')
+    first_game_date = datetime.strptime(start_date,'%Y-%m-%d')
+    last_game_date = datetime.strptime(end_date,'%Y-%m-%d')
     
 
     # List of games for the current date
     games = []
     
-    # Loop through potential game dates    
+    # Loop through potential game dates
     game_date = first_game_date
     while game_date <= last_game_date:
-        game_date = game_date.strftime("%m/%d/%Y")
-        
-        # API call for current date
-        scheduleRequestString = f"http://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&date={game_date}"
-        schedule = utilfx.try_get_json(scheduleRequestString, retries=5, pause_minutes=3)
-
-        if schedule is None:
-            print(f"getGameList(): Failed to retrieve schedule for date: {game_date}. Exiting.")
+        games_for_date = getGameListByDate(game_date)
+        if games_for_date is None:
+            print(f"getGameList(): Failed to retrieve schedule for date: {game_date.strftime('%m/%d/%Y')}. Exiting.")
             return None
-
-        # Loop through games on this date if any and add to the games list
-        if schedule['totalGames'] > 0:
-            for game in schedule['dates'][0]['games']:
-                gameDetails = {}
-                gameDetails['season'] = season
-                gameDetails['gameId'] = game['gamePk']
-                gameDetails['gameType'] = game['gameType']
-                gameDetails['doubleHeader'] = game['doubleHeader']
-                gameDetails['gamedayType'] = game['gamedayType']
-                gameDetails['tiebreaker'] = game['tiebreaker']
-                gameDetails['dayNight'] = game['dayNight']
-                gameDetails['gamesInSeries'] = game.get('gamesInSeries', 'NULL')
-                gameDetails['seriesGameNumber'] = game.get('seriesGameNumber', 'NULL')
-                gameDetails['gameDateTime'] = game['gameDate']                
-                gameDetails['homeTeam'] = game['teams']['home']['team']['id']
-                gameDetails['awayTeam'] = game['teams']['away']['team']['id']
-                gameDetails['venue'] = game['venue'].get('id', 'NULL')
-                if game.get('status', None) is not None:
-                    gameDetails['reason'] = game['status'].get('status', 'NULL')
-                    gameDetails['detailedState'] = game['status'].get('detailedState', 'NULL')
-
-                # Add this game to the list
-                games.append(gameDetails)
+        games.extend(games_for_date)
 
         # Increment the game date by one day
-        game_date = datetime.strptime(game_date, "%m/%d/%Y") + timedelta(days=1)
+        game_date = game_date + timedelta(days=1)
 
     return games
 
 
 
 
-def downloadGameDetail(game_id, output_dir):
+def downloadGameDetail(game_id):
     """
-        This function downloads the game details for a specific game ID and saves it to a JSON file.
+        This function downloads the game details for a specific game ID and saves it to a JSON file
+        in the configured download directory.
         
-        :param game_id: The unique identifier for the MLB game.
-        :param output_dir: The directory where the game details JSON file will be saved.
+        :param game_id: The unique identifier for the MLB game.        
     """
+    output_dir = os.getenv('GAMES_DOWNLOAD_DIR')
+
     # Build the URL for this game and get game data
     game_url = f'https://statsapi.mlb.com/api/v1.1/game/{game_id}/feed/live/'
     game_data = utilfx.try_get_json(game_url, retries=5, pause_minutes=3)
@@ -129,6 +160,8 @@ def downloadGameDetail(game_id, output_dir):
         f.write(str(json.dumps(game_data)))  
 
     return True
+
+
 
 
 def getAtBats(file_path):
@@ -282,6 +315,11 @@ def getPitches(file_path):
 
 
 
+
+############################################ Reference data sets ############################################
+
+
+
 def getGameTypes():
     # Get game types from MLB API
     url = "https://statsapi.mlb.com/api/v1/gameTypes"
@@ -289,6 +327,8 @@ def getGameTypes():
     data = response.json()
 
     return data
+
+
 
 
 def getPitchTypes():
@@ -308,3 +348,4 @@ def getPositions():
     data = response.json()
 
     return data
+

@@ -71,7 +71,7 @@ while season <= season_stop:
             game_id = game['gameId']
         
             # Download the game details
-            success = mlbfx.downloadGameDetail(game_id, GAMES_DOWNLOAD_DIR)
+            success = mlbfx.downloadGameDetail(game_id)
             if not success:
                 logging.error(f"Failed to download game detail for game ID: { game_id }")
                 print(f"Failed to download game detail for game ID: { game_id }")
